@@ -1,63 +1,64 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 import time
 import csv
 
 options = webdriver.ChromeOptions()
-# options.add_argument("--headless") 
+# options.add_argument("--headless")
 driver = webdriver.Chrome(options=options)
-
 
 url = "https://copyright.kazpatent.kz/"
 driver.get(url)
-time.sleep(5)  
+time.sleep(5)
 
-def scroll_down():
-    scrollable_element = driver.find_element(By.TAG_NAME, "body") 
-    for _ in range(15): 
-        ActionChains(driver).move_to_element(scrollable_element).send_keys(Keys.PAGE_DOWN).perform()
-        time.sleep(4)  
+def dynamic_scroll():
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    last_row_count = 0
+    retries = 0
 
-time.sleep(3)
+    while retries < 10:  
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(5)   
 
-previous_row_count = 0
-max_attempts = 30
+        rows = driver.find_elements(By.CSS_SELECTOR, "table tr")
+        row_count = len(rows)
 
-for attempt in range(max_attempts):
-    scroll_down()
+        print(f"🔽 Загружено строк: {row_count}")
 
-    rows = driver.find_elements(By.CSS_SELECTOR, "table tr")
-    print(f"Найдено строк в таблице: {len(rows)}")
+        if row_count > last_row_count:
+            retries = 0
+        else:
+            retries += 1  
 
-    if len(rows) > previous_row_count:
-        previous_row_count = len(rows)
-        print(f"Данные обновлены: загружено {previous_row_count} строк")
-    else:
-        print("Новые данные не загружаются, прокрутка остановлена.")
-        break
+        last_row_count = row_count
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+    print("✅ Достигнут предел загрузки. Остановка.")
+
+
+dynamic_scroll()
+
 
 rows = driver.find_elements(By.CSS_SELECTOR, "table tr")
 data = []
 
 for row in rows[1:]:  
     cols = row.find_elements(By.TAG_NAME, "td")
+    row_data = [col.get_attribute("innerText").strip() for col in cols]
 
-    row_data = [col.get_attribute("innerText").strip() for col in cols] 
-    if any(row_data):  
+    if any(row_data): 
         data.append(row_data)
-    else:
-        print(f"Пропущена пустая строка: {row_data}")
-
 
 driver.quit()
-
 
 csv_filename = "kazpatent_data.csv"
 with open(csv_filename, "w", newline="", encoding="utf-8") as file:
     writer = csv.writer(file)
-    writer.writerow(["Св-во №", "Дата публикации", "Рег. номер заявки", "Дата подачи заявки", "Дата создания объекта", "Тип объекта", "Название RU", "Авторы", "Статус"])  
+    writer.writerow(["Св-во №", "Дата публикации", "Рег. номер заявки", "Дата подачи заявки","Дата создания объекта", "Тип объекта", "Название RU", "Авторы", "Статус"])
     writer.writerows(data)
 
-print(f"Данные сохранены в {csv_filename}")
+print(f"Данные сохранены в {csv_filename} ({len(data)} записей)")
