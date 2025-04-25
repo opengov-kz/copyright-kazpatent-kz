@@ -1,0 +1,45 @@
+from ckanapi import RemoteCKAN
+import os
+
+API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJpM3EyelN3MWRiNEtaSXZnUjhrbzJiODNPQzFmVm5lOVdENXl0RjdlNkdFIiwiaWF0IjoxNzQ1NTcwNzQ4fQ.QmDOvMBzUY1dMIGbpT8ShlcFRSVf-aL8Tc38iLQi0Jk'
+ORG_ID = 'copyrignt-kazpatent'
+BASE_URL = 'https://data.opengov.kz'
+
+csv_files = [
+    {'path': 'https://github.com/opengov-kz/copyright-kazpatent-kz/blob/243c8ffc6665335200361011fefa526ded8c66c2/kazpatent_data.csv', 'name': 'актуальные данные'},
+    {'path': 'https://github.com/opengov-kz/copyright-kazpatent-kz/blob/243c8ffc6665335200361011fefa526ded8c66c2/kazpatentArchive_data.csv', 'name': 'архивные данные'}
+]
+
+ckan = RemoteCKAN(BASE_URL, apikey=API_KEY)
+
+dataset_name = 'copyright_kazpatent'
+title = 'Исследование объектов, охраняемые авторским правом'
+description = 'Здесь собраны файлы объектах защищенных авторским правом.'
+
+try:
+    dataset = ckan.action.package_show(id=dataset_name)
+    print("Датасет уже существует:", dataset['name'])
+except:
+    dataset = ckan.action.package_create(
+        name=dataset_name,
+        title=title,
+        owner_org=ORG_ID,
+        notes=description,
+        visibility='private'
+    )
+    print("Новый датасет создан:", dataset['name'])
+
+for csv in csv_files:
+    path = csv['path']
+    name = csv['name']
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            resource = ckan.action.resource_create(
+                package_id=dataset['id'],
+                name=name,
+                format='CSV',
+                upload=f
+            )
+            print(f"Файл «{name}» загружен. URL: {resource['url']}")
+    else:
+        print(f"Файл не найден: {path}")
